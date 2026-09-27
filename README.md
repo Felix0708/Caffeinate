@@ -62,7 +62,7 @@ bash scripts/check_app_state.sh
 | `Sources/Caffeine/AppState.swift` | 활성 상태, 타이머, 감시 및 보호 조건 |
 | `Sources/Caffeine/PowerManager.swift` | IOKit assertion, 전원 정보, PID 생존 확인 |
 | `Tests/AppStateCheck.swift` | 상태 전환 회귀 검사 |
-| `scripts/` | 빌드, 설치, 검사, 아이콘 생성 |
+| `scripts/` | 빌드, 설치, 검사 |
 
 화면 모드는 `PreventUserIdleDisplaySleep`, 시스템 모드는 `PreventUserIdleSystemSleep` assertion을 사용합니다. 배터리 정보는 `IOPowerSources`에서 읽고, 프로세스 생존 여부는 `kill(pid, 0)`으로 확인합니다.
 

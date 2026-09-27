@@ -3,9 +3,6 @@
 .swiftpm/
 *.app/
 
-# Local planning notes; README describes the published implementation.
-/PLAN.md
-
 # Local configuration and signing material.
 .env
 .env.*
