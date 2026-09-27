@@ -1,0 +1,16 @@
+.DS_Store
+.build/
+.swiftpm/
+*.app/
+
+# Local planning notes; README describes the published implementation.
+/PLAN.md
+
+# Local configuration and signing material.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.mobileprovision
+xcuserdata/
