@@ -23,6 +23,23 @@ final class PowerManager {
     static func isProcessRunning(pid: Int32) -> Bool { pid == 123 }
 }
 
+// The privileged write is replaced, so checks never change the Mac's sleep settings.
+final class SleepSettingStub: @unchecked Sendable {
+    private let lock = NSLock()
+    private var enabled = false
+    private var writes = 0
+    func read() -> Bool { lock.lock(); defer { lock.unlock() }; return enabled }
+    func write(_ value: Bool) -> Bool {
+        Thread.sleep(forTimeInterval: 0.1)
+        lock.lock()
+        defer { lock.unlock() }
+        enabled = value
+        writes += 1
+        return true
+    }
+    var writeCount: Int { lock.lock(); defer { lock.unlock() }; return writes }
+}
+
 @main
 struct AppStateCheck {
     @MainActor
@@ -30,6 +47,45 @@ struct AppStateCheck {
         let state = AppState()
         let power = PowerManager.shared
         defer { state.deactivate() }
+
+        assert(try! SystemSleepSetting.parseSetting("System-wide power settings:\n SleepDisabled\t0\n") == false)
+        assert(try! SystemSleepSetting.parseSetting(" SleepDisabled 1\n") == true)
+        for invalid in ["", " sleep 0", " SleepDisabled 2", " SleepDisabled 0\n SleepDisabled 1"] {
+            do {
+                _ = try SystemSleepSetting.parseSetting(invalid)
+                assertionFailure("Unknown settings must not be shown as off")
+            } catch {}
+        }
+        _ = try! SystemSleepSetting.readSetting() // Read-only integration with pmset.
+        let settingStore = SleepSettingStub()
+        let sleep = SystemSleepSetting(read: { settingStore.read() }, write: { settingStore.write($0) })
+        assert(sleep.isEnabled == false)
+        let change = Task { await sleep.setEnabled(true) }
+        while !sleep.isChanging { await Task.yield() }
+        await sleep.setEnabled(false) // Ignore repeated clicks during authorization.
+        await change.value
+        assert(sleep.isEnabled == true && sleep.errorMessage == nil && settingStore.writeCount == 1)
+        await sleep.setEnabled(false)
+        assert(sleep.isEnabled == false && settingStore.writeCount == 2)
+        _ = settingStore.write(true) // Pick up changes made outside this app.
+        sleep.refresh()
+        assert(sleep.isEnabled == true)
+        let failedWrites: [@Sendable (Bool) throws -> Bool] = [
+            { _ in false }, // Authentication cancelled.
+            { _ in throw CocoaError(.userCancelled) }, // Command failed.
+            { _ in true } // Command returned, but setting did not change.
+        ]
+        for writer in failedWrites {
+            let failed = SystemSleepSetting(read: { false }, write: writer)
+            await failed.setEnabled(true)
+            assert(failed.isEnabled == false && failed.errorMessage != nil && !failed.isChanging)
+        }
+        let unknown = SystemSleepSetting(read: { throw CocoaError(.fileReadUnknown) }, write: { _ in
+            assertionFailure("Must not write when current state is unknown")
+            return true
+        })
+        await unknown.setEnabled(true)
+        assert(unknown.isEnabled == nil && unknown.errorMessage != nil)
 
         let editor = RunningProcess(id: 123, name: "Sample Editor", isApp: true)
         let worker = RunningProcess(id: 456, name: "python3", isApp: false)
@@ -125,6 +181,6 @@ struct AppStateCheck {
         assert(state.isActive)
         state.toggle()
         assertInactive()
-        print("PASS: timer/watch transitions, activation failures, power guards, toggle")
+        print("PASS: timer/watch transitions, power guards, system sleep parsing/readback/cancellation/failures")
     }
 }

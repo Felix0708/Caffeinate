@@ -43,7 +43,7 @@ public final class AppState: ObservableObject {
     @Published public var watchedProcessName: String? = nil
 
     // 상태 표시 문자열
-    @Published public var statusMessage: String = "꺼짐 · 컴퓨터 자동 잠자기 허용"
+    @Published public var statusMessage: String = "기본 자동 잠자기 방지 꺼짐"
 
     private var countdownTimer: AnyCancellable?
     private let powerManager = PowerManager.shared
@@ -152,7 +152,7 @@ public final class AppState: ObservableObject {
         self.remainingSeconds = 0
         self.watchedPID = nil
         self.watchedProcessName = nil
-        self.statusMessage = "꺼짐 · 컴퓨터 자동 잠자기 허용"
+        self.statusMessage = "기본 자동 잠자기 방지 꺼짐"
     }
 
     // MARK: - Menu Bar Display Helpers
@@ -224,8 +224,8 @@ public final class AppState: ObservableObject {
 
     private func updateStatusMessage() {
         if !isActive {
-            if statusMessage != "꺼짐 · 컴퓨터 자동 잠자기 허용" {
-                statusMessage = "꺼짐 · 컴퓨터 자동 잠자기 허용"
+            if statusMessage != "기본 자동 잠자기 방지 꺼짐" {
+                statusMessage = "기본 자동 잠자기 방지 꺼짐"
             }
             return
         }
