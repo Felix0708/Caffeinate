@@ -125,15 +125,17 @@ public final class AppState: ObservableObject {
         }
     }
 
-    public func startWatchingProcess(pid: Int32, name: String? = nil) {
+    @discardableResult
+    public func startWatchingProcess(pid: Int32, name: String? = nil) -> Bool {
         guard pid > 0, PowerManager.isProcessRunning(pid: pid) else {
             self.statusMessage = "PID \(pid) 프로세스를 찾을 수 없습니다."
-            return
+            return false
         }
-        guard activate(preset: .indefinite) else { return }
+        guard activate(preset: .indefinite) else { return false }
         self.watchedPID = pid
         self.watchedProcessName = name ?? "PID \(pid)"
         updateStatusMessage()
+        return true
     }
 
     public func stopWatchingProcess() {
