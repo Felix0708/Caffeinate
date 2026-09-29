@@ -17,7 +17,7 @@ struct CaffeineApp: App {
                 }
             }
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
     }
 }
 
@@ -25,107 +25,88 @@ struct MenuView: View {
     @ObservedObject var appState: AppState
 
     var body: some View {
-        // 1. 현재 상태 헤더
-        Text("☕️ Caffeine")
-            .font(.headline)
-        Text(appState.statusMessage)
-            .font(.caption)
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Caffeine", systemImage: appState.menuBarIconName)
+                .font(.headline)
+            Text(appState.statusMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-        Divider()
+            Button(appState.isActive ? "Caffeine 끄기 (절전 허용)" : "Caffeine 켜기 (절전 방지)") {
+                appState.toggle()
+            }
+            .keyboardShortcut("t", modifiers: [.command])
+            .buttonStyle(.borderedProminent)
 
-        // 2. 즉시 토글
-        Button(appState.isActive ? "Caffeine 끄기 (절전 허용)" : "Caffeine 켜기 (절전 방지)") {
-            appState.toggle()
-        }
-        .keyboardShortcut("t", modifiers: [.command])
+            Divider()
 
-        Divider()
+            Text("유지 시간")
+                .font(.subheadline.bold())
+            Picker("유지 시간", selection: Binding<DurationPreset?>(
+                get: { appState.watchedPID == nil ? appState.selectedPreset : nil },
+                set: { if let preset = $0 { appState.activate(preset: preset) } }
+            )) {
+                if appState.watchedPID != nil {
+                    Text("PID").tag(nil as DurationPreset?)
+                }
+                ForEach(DurationPreset.allCases) { preset in
+                    Text(preset.label).tag(Optional(preset))
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            Text("시간을 변경하면 바로 시작합니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-        // 3. 시간 설정 (타이머)
-        Menu("⏱️ 유지 시간 (Timer)") {
-            ForEach(DurationPreset.allCases) { preset in
-                Button {
-                    appState.activate(preset: preset)
-                } label: {
-                    HStack {
-                        Text(preset.label)
-                        if appState.isActive && appState.selectedPreset == preset && appState.watchedPID == nil {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
+            Text("절전 방지 모드")
+                .font(.subheadline.bold())
+            Picker("절전 방지 모드", selection: Binding(
+                get: { appState.currentMode },
+                set: { appState.setMode($0) }
+            )) {
+                Text("화면 켜짐 유지").tag(AwakeMode.display)
+                Text("시스템만 유지").tag(AwakeMode.system)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Divider()
+
+            Toggle("AC 전원 연결 중에만 동작", isOn: $appState.onlyOnACPower)
+                .onChange(of: appState.onlyOnACPower) { newValue in
+                    if newValue && !PowerManager.isACPowerConnected() && appState.isActive {
+                        appState.deactivate()
                     }
                 }
-            }
-        }
+            Toggle("배터리 20% 이하 시 자동 해제", isOn: $appState.batterySafeguardEnabled)
 
-        // 4. 모드 선택
-        Menu("🎯 절전 방지 모드") {
-            Button {
-                appState.setMode(.display)
-            } label: {
-                HStack {
-                    Text("화면 켜짐 유지 (-d)")
-                    if appState.currentMode == .display {
-                        Spacer()
-                        Image(systemName: "checkmark")
-                    }
+            if let watchedName = appState.watchedProcessName {
+                Button("프로세스 감시 중지 (\(watchedName))") {
+                    appState.stopWatchingProcess()
+                }
+            } else {
+                Button("프로세스 감시 (PID)…") {
+                    promptForPID()
                 }
             }
 
-            Button {
-                appState.setMode(.system)
-            } label: {
-                HStack {
-                    Text("시스템만 유지 (-i)")
-                    if appState.currentMode == .system {
-                        Spacer()
-                        Image(systemName: "checkmark")
-                    }
-                }
+            Divider()
+
+            Toggle("로그인 시 자동 시작", isOn: Binding(
+                get: { appState.launchAtLogin },
+                set: { appState.setLaunchAtLogin(enabled: $0) }
+            ))
+            Button("Caffeine 종료") {
+                appState.deactivate()
+                NSApplication.shared.terminate(nil)
             }
+            .keyboardShortcut("q", modifiers: [.command])
         }
-
-        Divider()
-
-        // 5. 스마트 트리거 옵션
-        Toggle("⚡️ AC 전원 연결 중에만 동작", isOn: $appState.onlyOnACPower)
-            .onChange(of: appState.onlyOnACPower) { newValue in
-                if newValue && !PowerManager.isACPowerConnected() && appState.isActive {
-                    appState.deactivate()
-                }
-            }
-
-        Toggle("🔋 배터리 20% 이하 시 자동 해제", isOn: $appState.batterySafeguardEnabled)
-
-        Divider()
-
-        // 6. 프로세스 감시
-        if let watchedName = appState.watchedProcessName {
-            Button("🛑 프로세스 감시 중지 (\(watchedName))") {
-                appState.stopWatchingProcess()
-            }
-        } else {
-            Button("🔍 프로세스 감시 (-w PID)...") {
-                promptForPID()
-            }
-        }
-
-        Divider()
-
-        // 7. 부팅 시 자동 시작 (Launch at Login)
-        Toggle("🚀 컴퓨터 켤 때 자동 시작", isOn: Binding(
-            get: { appState.launchAtLogin },
-            set: { appState.setLaunchAtLogin(enabled: $0) }
-        ))
-
-        Divider()
-
-        // 8. 종료
-        Button("Caffeine 종료") {
-            appState.deactivate()
-            NSApplication.shared.terminate(nil)
-        }
-        .keyboardShortcut("q", modifiers: [.command])
+        .toggleStyle(.checkbox)
+        .padding(16)
+        .frame(width: 360)
     }
 
     private func promptForPID() {

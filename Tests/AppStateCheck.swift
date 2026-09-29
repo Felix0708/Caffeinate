@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // Compile with the real AppState and this deterministic replacement for IOKit.
 public enum AwakeMode: String {
@@ -37,6 +38,13 @@ struct AppStateCheck {
             assert(state.menuBarTitle.isEmpty)
         }
 
+        assert(state.activate(preset: .indefinite))
+        var updates = 0
+        let observation = state.objectWillChange.sink { updates += 1 }
+        try? await Task.sleep(nanoseconds: 1_200_000_000)
+        assert(updates == 0, "Unchanged status must not rebuild the menu every second")
+        observation.cancel()
+
         state.startWatchingProcess(pid: 123)
         assert(state.isActive && state.watchedPID == 123)
         state.setMode(.system)
@@ -44,6 +52,11 @@ struct AppStateCheck {
         assert(state.activate(preset: .min15))
         assert(state.watchedPID == nil && state.watchedProcessName == nil)
         assert(state.remainingSeconds == 900 && state.menuBarTitle.contains("15m"))
+        try? await Task.sleep(nanoseconds: 1_200_000_000)
+        assert(state.remainingSeconds < 900 && state.remainingSeconds > 0)
+        let remaining = state.remainingSeconds
+        state.setMode(.display)
+        assert(state.selectedPreset == .min15 && state.remainingSeconds == remaining)
 
         power.activationSucceeds = false
         state.setMode(.display)

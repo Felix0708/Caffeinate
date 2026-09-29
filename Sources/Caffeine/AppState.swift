@@ -14,7 +14,7 @@ public enum DurationPreset: Int, CaseIterable, Identifiable {
 
     public var label: String {
         switch self {
-        case .indefinite: return "무제한 (Indefinite)"
+        case .indefinite: return "무제한"
         case .min15: return "15분"
         case .min30: return "30분"
         case .hour1: return "1시간"
@@ -222,7 +222,9 @@ public final class AppState: ObservableObject {
 
     private func updateStatusMessage() {
         if !isActive {
-            statusMessage = "비활성 (절전 허용)"
+            if statusMessage != "비활성 (절전 허용)" {
+                statusMessage = "비활성 (절전 허용)"
+            }
             return
         }
 
@@ -237,7 +239,10 @@ public final class AppState: ObservableObject {
             parts.append("무제한 유지")
         }
 
-        statusMessage = "● " + parts.joined(separator: " · ")
+        let message = "● " + parts.joined(separator: " · ")
+        if statusMessage != message {
+            statusMessage = message
+        }
     }
 
     private func formatRemainingTime(_ totalSeconds: Int) -> String {
