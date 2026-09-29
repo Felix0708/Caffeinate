@@ -28,12 +28,14 @@ struct MenuView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Caffeine", systemImage: appState.menuBarIconName)
                 .font(.headline)
+            Text("컴퓨터 자동 잠자기 방지")
+                .font(.subheadline)
             Text(appState.statusMessage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button(appState.isActive ? "Caffeine 끄기 (절전 허용)" : "Caffeine 켜기 (절전 방지)") {
+            Button(appState.isActive ? "자동 잠자기 방지 끄기" : "자동 잠자기 방지 켜기") {
                 appState.toggle()
             }
             .keyboardShortcut("t", modifiers: [.command])
@@ -60,17 +62,14 @@ struct MenuView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text("절전 방지 모드")
-                .font(.subheadline.bold())
-            Picker("절전 방지 모드", selection: Binding(
-                get: { appState.currentMode },
-                set: { appState.setMode($0) }
-            )) {
-                Text("화면 켜짐 유지").tag(AwakeMode.display)
-                Text("시스템만 유지").tag(AwakeMode.system)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            Toggle("화면 자동 꺼짐도 방지", isOn: Binding(
+                get: { appState.currentMode == .display },
+                set: { appState.setMode($0 ? .display : .system) }
+            ))
+            Text("작동 중에는 체크를 해제해도 화면만 자동으로 꺼지고 작업은 계속됩니다. 밝기는 직접 조절할 수 있습니다.\n덮개를 닫으면 컴퓨터가 잠들 수 있습니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Divider()
 
