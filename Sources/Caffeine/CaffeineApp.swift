@@ -35,8 +35,7 @@ struct MenuView: View {
             if choosingProcess {
                 ProcessPickerView(appState: appState) { choosingProcess = false }
             } else {
-                ScrollView { controls }
-                    .frame(height: 640)
+                controls.fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(width: 360)
@@ -47,22 +46,27 @@ struct MenuView: View {
     }
 
     private var controls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Caffeine", systemImage: appState.menuBarIconName)
-                .font(.headline)
-            if systemSleep.isEnabled == true {
-                Label("덮개 닫아도 계속 실행 · 켜짐", systemImage: "laptopcomputer")
-                    .font(.subheadline.bold())
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Caffeine", systemImage: appState.menuBarIconName)
+                    .font(.headline)
+                if systemSleep.isEnabled == true {
+                    Label("덮개 닫아도 계속 실행 · 켜짐", systemImage: "laptopcomputer")
+                        .font(.subheadline.bold())
+                }
+                Text("기본 기능 · 자동 잠자기 방지")
+                    .font(.subheadline)
+                Text(appState.statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text("기본 기능 · 자동 잠자기 방지")
-                .font(.subheadline)
-            Text(appState.statusMessage)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
 
-            Button(appState.isActive ? "자동 잠자기 방지 끄기" : "자동 잠자기 방지 켜기") {
+            Button {
                 appState.toggle()
+            } label: {
+                Text(appState.isActive ? "자동 잠자기 방지 끄기" : "자동 잠자기 방지 켜기")
+                    .frame(maxWidth: .infinity)
             }
             .keyboardShortcut("t", modifiers: [.command])
             .buttonStyle(.borderedProminent)
@@ -84,6 +88,7 @@ struct MenuView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .frame(maxWidth: .infinity)
             Text("시간을 변경하면 바로 시작합니다.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -107,14 +112,17 @@ struct MenuView: View {
                 }
             Toggle("배터리 20% 이하 시 자동 해제", isOn: $appState.batterySafeguardEnabled)
 
-            if let watchedName = appState.watchedProcessName {
-                Button("종료 감시 중지 (\(watchedName))") {
+            Button {
+                if appState.watchedProcessName != nil {
                     appState.stopWatchingProcess()
-                }
-            } else {
-                Button("앱·작업이 종료될 때까지…") {
+                } else {
                     choosingProcess = true
                 }
+            } label: {
+                Text(appState.watchedProcessName.map { "종료 감시 중지 (\($0))" } ?? "앱·작업이 종료될 때까지…")
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity)
             }
 
             Divider()
@@ -141,16 +149,19 @@ struct MenuView: View {
 
             Divider()
 
-            Toggle("로그인 시 자동 시작", isOn: Binding(
-                get: { appState.launchAtLogin },
-                set: { appState.setLaunchAtLogin(enabled: $0) }
-            ))
-            Button("Caffeine 종료") {
-                appState.deactivate()
-                NSApplication.shared.terminate(nil)
+            HStack {
+                Toggle("로그인 시 자동 시작", isOn: Binding(
+                    get: { appState.launchAtLogin },
+                    set: { appState.setLaunchAtLogin(enabled: $0) }
+                ))
+                Spacer()
+                Button("종료") {
+                    appState.deactivate()
+                    NSApplication.shared.terminate(nil)
+                }
+                .disabled(systemSleep.isChanging)
+                .keyboardShortcut("q", modifiers: [.command])
             }
-            .disabled(systemSleep.isChanging)
-            .keyboardShortcut("q", modifiers: [.command])
         }
         .toggleStyle(.checkbox)
         .padding(16)
